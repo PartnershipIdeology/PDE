@@ -1,8 +1,10 @@
 /* Replication Code Partnership Ideology
 *Authors: Bova Marco, Cinti Emanuele,  Engeler Guia, Picci Miriam
 */
+
 local user "`c(username)'"
 di as text "User: `user'"
+
 /* Pick path (single data folder) */
 if ("`user'" == "miria") {
     global path "C:\Users\miria\Downloads\BOCCONI\ESS\POP DYN\RHYMÄTYÖ"
@@ -22,10 +24,12 @@ else {
 * Project subfolders (relative to $path)
 global datapath    "$path"
 global resultspath "$path/Results"
+
 * Make sure Results/figs exists
 capture mkdir "$resultspath"
 capture mkdir "$resultspath/figs"
 capture mkdir "$resultspath/summarystatistics"
+
 * Go to Data folder
 cd "$datapath"
 ************************************************************
@@ -186,6 +190,7 @@ Relationship groups from Q9 = relationship_status:
 use "UNFPA_PILOT_pde_group_project.dta", clear
 set graphics off
 local outdir "$resultspath/figs"
+
 *======================================================*
 * LOOP OVER ITEMS
 *======================================================*
@@ -491,23 +496,30 @@ gen x = .
 }
 set graphics on
 di as result "Done. Panels saved in: `outdir'"
+
 /********************************************************************
 DESCRIPTIVE STATISTICS
 reminder:
     sex: 1 = Female, 2 = Male
     rel3: 1 = Single, 2 = Dating, 3 = Stable
 ********************************************************************/
+local outdir "$resultspath/summarystatistics"
+
 local items ""
 capture ds Q3Fr*
 if !_rc local items "`items' `r(varlist)'"
 capture ds Q3Mr*
 if !_rc local items "`items' `r(varlist)'"
 * add only outcome variables, not grouping variables
-foreach v in Q16r7 Q16r8 Q19 Q17r4 Q18r5 Q33r3 Q33r7 {
+foreach v in Q16r7 Q16r8 Q19 {
     capture confirm variable `v'
     if !_rc local items "`items' `v'"
 }
 local items : list uniq items
+
+tempfile allresults
+local first = 1
+
 foreach v of local items {
     preserve
         keep country rel3 sex `v'
@@ -576,10 +588,13 @@ order item country rel3 female_n male_n female_mean male_mean diff_mean_male_fem
 format female_mean male_mean diff_mean_male_female female_median male_median diff_median_male_female female_sd male_sd diff_sd_male_female female_iqr male_iqr diff_iqr_male_female female_p25 male_p25 female_p75 male_p75 %9.2f
 export excel using "`outdir'/ideology_summary_tables.xlsx", sheet("male_female_differences") firstrow(variables) sheetreplace
 restore
+
 ******************************
 *** create overlap statistics
 ****************************
 * Overlap table: Female = 1, Male = 2
+local outdir "$resultspath/summarystatistics"
+
 capture restore, not
 use "UNFPA_PILOT_pde_group_project.dta", clear
 * Recreate items list 
@@ -652,22 +667,27 @@ use `overlap_all', clear
 sort item country rel3
 export excel using "`outdir'/ideology_overlap_tables.xlsx", sheet("overlap_wide") firstrow(variables) replace
 save "`outdir'/ideology_overlap_tables.dta", replace
+
 ** showcase the overlap for Sweden and South Korea
 capture restore, not
-use "`outdir'/ideology_overlap_tables.dta", clear
-set graphics off
-keep if country == 1
-set seed 12345
-gen xrel = rel3 + (runiform() - 0.5) * 0.10
-twoway scatter fraction_people_overlap xrel, msymbol(i) mlabel(item) mlabsize(vsmall) mlabcolor(navy) mlabposition(0) xlabel(1 "Single" 2 "Dating" 3 "Stable", labsize(medsmall) noticks) ylabel(0(0.1)1, angle(horizontal) format(%3.1f) grid) yscale(range(0 1)) xscale(range(0.35 3.65)) xtitle("") ytitle("Fraction of people in overlap") title("Male-female overlap across variables", size(medium)) subtitle("Sweden", size(small)) legend(off) graphregion(color(white)) plotregion(color(white)) note("Each label is one variable.", size(vsmall))
-graph export "`outdir'/overlap_distribution_sweden_labeled.png", replace width(3000)
 
 use "`outdir'/ideology_overlap_tables.dta", clear
-keep if country == 5
+local outdir "$resultspath/summarystatistics"
+
+set graphics off
+graph drop _all
+
 set seed 12345
 gen xrel = rel3 + (runiform() - 0.5) * 0.10
-twoway scatter fraction_people_overlap xrel, msymbol(i) mlabel(item) mlabsize(vsmall) mlabcolor(navy) mlabposition(0) xlabel(1 "Single" 2 "Dating" 3 "Stable", labsize(medsmall) noticks) ylabel(0(0.1)1, angle(horizontal) format(%3.1f) grid) yscale(range(0 1)) xscale(range(0.35 3.65)) xtitle("") ytitle("Fraction of people in overlap") title("Male-female overlap across variables", size(medium)) subtitle("South Korea", size(small)) legend(off) graphregion(color(white)) plotregion(color(white)) note("Each label is one variable.", size(vsmall))
-graph export "`outdir'/overlap_distribution_south Korea_labeled.png", replace width(3000)
+
+twoway scatter fraction_people_overlap xrel if country == 1, msymbol(i) mlabel(item) mlabsize(vsmall) mlabcolor(navy) mlabposition(0) xlabel(1 "Single" 2 "Dating" 3 "Stable", labsize(medsmall) noticks) ylabel(0(0.1)1, angle(horizontal) format(%3.1f) grid) yscale(range(0 1)) xscale(range(0.35 3.65)) xtitle("") ytitle("Fraction of people in overlap") title("Male-female overlap across variables", size(medium)) subtitle("Sweden", size(small)) legend(off) graphregion(color(white)) plotregion(color(white)) note("Each label is one variable.", size(vsmall)) name(overlap_sweden, replace)
+
+graph export "`outdir'/overlap_distribution_sweden_labeled.png", name(overlap_sweden) replace width(3000)
+
+twoway scatter fraction_people_overlap xrel if country == 5, msymbol(i) mlabel(item) mlabsize(vsmall) mlabcolor(navy) mlabposition(0) xlabel(1 "Single" 2 "Dating" 3 "Stable", labsize(medsmall) noticks) ylabel(0(0.1)1, angle(horizontal) format(%3.1f) grid) yscale(range(0 1)) xscale(range(0.35 3.65)) xtitle("") ytitle("Fraction of people in overlap") title("Male-female overlap across variables", size(medium)) subtitle("South Korea", size(small)) legend(off) graphregion(color(white)) plotregion(color(white)) note("Each label is one variable.", size(vsmall)) name(overlap_southkorea, replace)
+
+graph export "`outdir'/overlap_distribution_southkorea_labeled.png", name(overlap_southkorea) replace width(3000)
+
 set graphics on
 
 
