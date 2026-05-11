@@ -36,12 +36,19 @@ cd "$datapath"
 **#        CLEANING  ***
 ************************************************************
 use "UNFPA_PILOT_v2.dta", clear
+<<<<<<< Updated upstream
 bysort country: gen n_country = _N
+=======
+
+bysort country: gen n_country = _N
+
+>>>>>>> Stashed changes
 *------------------*
 * Constants
 *------------------*
 local SWE 1
 local KOR 5
+<<<<<<< Updated upstream
 local male   2
 local female 1
 ****Create and rename new variables*** 
@@ -50,34 +57,83 @@ rename S2 age
 rename S4 country_residence
 rename Q8 marital_status
 rename Q9 relationship_status
+=======
+
+local male   2
+local female 1
+
+****Create and rename new variables*** 
+
+rename S1 sex
+
+rename S2 age
+
+rename S4 country_residence
+
+rename Q8 marital_status
+
+rename Q9 relationship_status
+
+>>>>>>> Stashed changes
 * Create Education groups from Q40
 gen edu3 = .
 replace edu3 = 1 if inlist(Q40,1,2)
 replace edu3 = 2 if Q40==3
 replace edu3 = 3 if Q40==4
 replace edu3 = . if Q40==99 | missing(Q40)
+<<<<<<< Updated upstream
 label define edu3lbl 1 "Low" 2 "Mid" 3 "High", replace
 label values edu3 edu3lbl
+=======
+
+label define edu3lbl 1 "Low" 2 "Mid" 3 "High", replace
+label values edu3 edu3lbl
+
+
+>>>>>>> Stashed changes
 * Create Relationship groups from relationship_status = Q9
 gen rel3 = .
 replace rel3 = 1 if relationship_status==1
 replace rel3 = 2 if relationship_status==2
 replace rel3 = 3 if inrange(relationship_status,3,6)
+<<<<<<< Updated upstream
 label define rel3lbl 1 "Single" 2 "Dating" 3 "Stable", replace
 label values rel3 rel3lbl
 *Create variable for same sex relationships
 gen reltype = .
+=======
+
+label define rel3lbl 1 "Single" 2 "Dating" 3 "Stable", replace
+label values rel3 rel3lbl
+
+*Create variable for same sex relationships
+gen reltype = .
+
+>>>>>>> Stashed changes
 *different sex
 replace reltype = 1 if (sex == 1 & Q13 == 2) | (sex == 2 & Q13 == 1) 
 *same sex
 replace reltype = 2 if (sex == 1 & Q13 == 1) | (sex == 2 & Q13 == 2)
 *unkown
 replace reltype = 3 if inlist(sex, 3, 99) | inlist(Q13, 3, 99)
+<<<<<<< Updated upstream
 * Check distribution
 tab reltype
 * Drop same-sex and other/unknown
 drop if inlist(reltype, 2, 3)
 rename Q41 employment
+=======
+
+* Check distribution
+tab reltype
+
+* Drop same-sex and other/unknown
+drop if inlist(reltype, 2, 3)
+
+rename Q41 employment
+
+
+>>>>>>> Stashed changes
 * Ideals - Traditional
 rename Q30r1oe fert_ideal_life_trad
 replace fert_ideal_life_trad=Q30 if fert_ideal_life_trad==.
@@ -141,6 +197,7 @@ gen fert_intent_life_dummy_5c = (fert_intent_life==5) if fert_intent_life!=.
 gen fert_intent_life_dummy_6c = (fert_intent_life==6) if fert_intent_life!=. 
 gen fert_intent_life_dummy_7c = (fert_intent_life==7) if fert_intent_life!=. 
 gen fert_intent_life_dummy_8c = (fert_intent_life>=8) if fert_intent_life!=. //Note: not sure if to make 8+ or to drop but I think better 8+
+<<<<<<< Updated upstream
 *recode Q19
 recode Q19 (1 = 5 ) (2 = 2) (3 = 1) (4=3) (5=4) (99=99)
 *recode Q3F* and Q3M* to make sure that 5 is the most conservative answer and 1 the least
@@ -148,6 +205,22 @@ recode Q3F* (1 = 5 ) (2 = 4) (3 = 3) (4=2) (5=1) (99=99)
 recode Q3M* (1 = 5 ) (2 = 4) (3 = 3) (4=2) (5=1) (99=99)
 *recode Q17r4 this is not a key variable to make sure that 5 is the most conservative answer and 1 the least
 recode Q17r4 (1 = 5 ) (2 = 4) (3 = 3) (4=2) (5=1) (99=99)
+=======
+
+*recode Q19
+
+recode Q19 (1 = 5 ) (2 = 2) (3 = 1) (4=3) (5=4) (99=99)
+
+*recode Q3F* and Q3M* to make sure that 5 is the most conservative answer and 1 the least
+
+recode Q3F* (1 = 5 ) (2 = 4) (3 = 3) (4=2) (5=1) (99=99)
+recode Q3M* (1 = 5 ) (2 = 4) (3 = 3) (4=2) (5=1) (99=99)
+
+*recode Q17r4 this is not a key variable to make sure that 5 is the most conservative answer and 1 the least
+
+recode Q17r4 (1 = 5 ) (2 = 4) (3 = 3) (4=2) (5=1) (99=99)
+
+>>>>>>> Stashed changes
 save "UNFPA_PILOT_cleaned.dta",replace
 *-----------------------------------------------------------------------------
 * Shortlisted Variable selection (and 17.4, Q18r5, Q33r3, Q33r7 for later comparison)
@@ -159,6 +232,10 @@ capture ds Q3Fr*
 if !_rc local items "`items' `r(varlist)'"
 capture ds Q3Mr*
 if !_rc local items "`items' `r(varlist)'"
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 * add only outcome variables, not grouping variables
 foreach v in Q16r7 Q16r8 Q19 Q17r4 Q18r5 Q33r3 Q33r7 {
     capture confirm variable `v'
@@ -167,6 +244,10 @@ foreach v in Q16r7 Q16r8 Q19 Q17r4 Q18r5 Q33r3 Q33r7 {
 local items : list uniq items
 * variables needed for plotting
 local basevars country sex Q40 edu3 rel3
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 * keep plotting vars (item) + grouping vars (basevars)
 local keepvars `basevars' `items'
 local keepvars : list uniq keepvars
@@ -177,6 +258,10 @@ di as result "`keepvars'"
 keep `keepvars'
 compress
 save "UNFPA_PILOT_pde_group_project.dta",replace
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 /********************************************************************
 PANELS (6 subplots per item):
   Panel A: Sex only (Male vs Female)
@@ -189,6 +274,10 @@ Relationship groups from Q9 = relationship_status:
 ********************************************************************/
 use "UNFPA_PILOT_pde_group_project.dta", clear
 set graphics off
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 local outdir "$resultspath/figs"
 
 *======================================================*
@@ -497,12 +586,17 @@ gen x = .
 set graphics on
 di as result "Done. Panels saved in: `outdir'"
 
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 /********************************************************************
 DESCRIPTIVE STATISTICS
 reminder:
     sex: 1 = Female, 2 = Male
     rel3: 1 = Single, 2 = Dating, 3 = Stable
 ********************************************************************/
+<<<<<<< Updated upstream
 local outdir "$resultspath/summarystatistics"
 
 local items ""
@@ -526,10 +620,39 @@ foreach v of local items {
         rename `v' score
         drop if missing(score)
         drop if missing(country, rel3, sex)
+=======
+
+local items ""
+
+capture ds Q3Fr*
+if !_rc local items "`items' `r(varlist)'"
+
+capture ds Q3Mr*
+if !_rc local items "`items' `r(varlist)'"
+
+* add only outcome variables, not grouping variables
+foreach v in Q16r7 Q16r8 Q19 Q17r4 Q18r5 Q33r3 Q33r7 {
+    capture confirm variable `v'
+    if !_rc local items "`items' `v'"
+}
+
+local items : list uniq items
+
+foreach v of local items {
+    preserve
+
+        keep country rel3 sex `v'
+
+        rename `v' score
+        drop if missing(score)
+        drop if missing(country, rel3, sex)
+
+>>>>>>> Stashed changes
         * Create Female, Male, and Total groups
         gen sex3 = sex
         expand 2, gen(totalrow)
         replace sex3 = 3 if totalrow == 1
+<<<<<<< Updated upstream
         label define sex3lbl 1 "Female" 2 "Male" 3 "Total", replace
         label values sex3 sex3lbl
         * Peak/mode within each group
@@ -540,6 +663,25 @@ foreach v of local items {
         gen item = "`v'"
         order item country rel3 sex3 n mean median peak sd iqr p25 p75
         format mean median sd iqr p25 p75 %9.2f
+=======
+
+        label define sex3lbl 1 "Female" 2 "Male" 3 "Total", replace
+        label values sex3 sex3lbl
+
+        * Peak/mode within each group
+        bysort country rel3 sex3: egen peak = mode(score), minmode
+
+        * Summary statistics
+        collapse (count) n = score (mean) mean = score (median) median = score (sd) sd = score (p25) p25 = score (p75) p75 = score (first) peak = peak, by(country rel3 sex3)
+
+        gen iqr = p75 - p25
+
+        gen item = "`v'"
+
+        order item country rel3 sex3 n mean median peak sd iqr p25 p75
+        format mean median sd iqr p25 p75 %9.2f
+
+>>>>>>> Stashed changes
         if `first' {
             save `allresults', replace
             local first = 0
@@ -548,6 +690,7 @@ foreach v of local items {
             append using `allresults'
             save `allresults', replace
         }
+<<<<<<< Updated upstream
     restore
 }
 use `allresults', clear
@@ -556,18 +699,43 @@ export excel using "`outdir'/ideology_summary_tables.xlsx", sheet("summary") fir
 capture restore, not
 preserve
 keep if inlist(sex3, 1, 2)
+=======
+
+    restore
+}
+
+use `allresults', clear
+
+sort item country rel3 sex3
+
+export excel using "`outdir'/ideology_summary_tables.xlsx", sheet("summary") firstrow(variables) replace
+
+capture restore, not
+
+preserve
+
+keep if inlist(sex3, 1, 2)
+
+>>>>>>> Stashed changes
 /*
 Create differences in mean between male and female for each country and variable
 Interpretation:
 diff_mean_male_female > 0 means men are more conservative on average than women.
 diff_mean_male_female < 0 means women are more conservative on average than men.
 */
+<<<<<<< Updated upstream
 reshape wide n mean median peak sd iqr p25 p75, i(item country rel3) j(sex3)
+=======
+
+reshape wide n mean median peak sd iqr p25 p75, i(item country rel3) j(sex3)
+
+>>>>>>> Stashed changes
 gen diff_mean_male_female = mean2 - mean1
 gen diff_median_male_female = median2 - median1
 gen diff_peak_male_female = peak2 - peak1
 gen diff_sd_male_female = sd2 - sd1
 gen diff_iqr_male_female = iqr2 - iqr1
+<<<<<<< Updated upstream
 rename n1 female_n
 rename n2 male_n
 rename mean1 female_mean
@@ -603,10 +771,66 @@ capture ds Q3Fr*
 if !_rc local items "`items' `r(varlist)'"
 capture ds Q3Mr*
 if !_rc local items "`items' `r(varlist)'"
+=======
+
+rename n1 female_n
+rename n2 male_n
+
+rename mean1 female_mean
+rename mean2 male_mean
+
+rename median1 female_median
+rename median2 male_median
+
+rename peak1 female_peak
+rename peak2 male_peak
+
+rename sd1 female_sd
+rename sd2 male_sd
+
+rename iqr1 female_iqr
+rename iqr2 male_iqr
+
+rename p251 female_p25
+rename p252 male_p25
+
+rename p751 female_p75
+rename p752 male_p75
+
+order item country rel3 female_n male_n female_mean male_mean diff_mean_male_female female_median male_median diff_median_male_female female_peak male_peak diff_peak_male_female female_sd male_sd diff_sd_male_female female_iqr male_iqr diff_iqr_male_female female_p25 male_p25 female_p75 male_p75
+
+format female_mean male_mean diff_mean_male_female female_median male_median diff_median_male_female female_sd male_sd diff_sd_male_female female_iqr male_iqr diff_iqr_male_female female_p25 male_p25 female_p75 male_p75 %9.2f
+
+
+export excel using "`outdir'/ideology_summary_tables.xlsx", sheet("male_female_differences") firstrow(variables) sheetreplace
+
+restore
+
+******************************
+*** create OVERLAP statistics
+******************************
+
+* Overlap table: Female = 1, Male = 2
+
+capture restore, not
+
+use "UNFPA_PILOT_pde_group_project.dta", clear
+
+* Recreate items list 
+local items ""
+
+capture ds Q3Fr*
+if !_rc local items "`items' `r(varlist)'"
+
+capture ds Q3Mr*
+if !_rc local items "`items' `r(varlist)'"
+
+>>>>>>> Stashed changes
 foreach v in Q16r7 Q16r8 Q19 {
     capture confirm variable `v'
     if !_rc local items "`items' `v'"
 }
+<<<<<<< Updated upstream
 local items : list uniq items
 di as text "Items used for overlap:"
 di as result "`items'"
@@ -653,6 +877,82 @@ foreach v of local items {
     gen str20 item = "`v'"
     order item country rel3 female_total male_total total_n overlap_1 overlap_2 overlap_3 overlap_4 overlap_5 overlap_total people_in_overlap people_not_overlap fraction_people_overlap fraction_people_not_overlap nonoverlap_1 nonoverlap_2 nonoverlap_3 nonoverlap_4 nonoverlap_5
     format fraction_people_overlap fraction_people_not_overlap %9.3f
+=======
+
+local items : list uniq items
+
+di as text "Items used for overlap:"
+di as result "`items'"
+
+tempfile overlap_all
+local first = 1
+
+foreach v of local items {
+
+    preserve
+
+    keep country rel3 sex `v'
+    rename `v' score
+
+    keep if inlist(sex, 1, 2)
+    keep if inrange(score, 1, 5)
+
+    contract country rel3 score sex
+
+    reshape wide _freq, i(country rel3 score) j(sex)
+
+    capture confirm variable _freq1
+    if _rc gen _freq1 = 0
+
+    capture confirm variable _freq2
+    if _rc gen _freq2 = 0
+
+    replace _freq1 = 0 if missing(_freq1)
+    replace _freq2 = 0 if missing(_freq2)
+
+    gen female_n_ = _freq1
+    gen male_n_ = _freq2
+
+    gen overlap_ = min(female_n_, male_n_)
+    gen nonoverlap_ = abs(female_n_ - male_n_)
+
+    keep country rel3 score female_n_ male_n_ overlap_ nonoverlap_
+
+    reshape wide female_n_ male_n_ overlap_ nonoverlap_, i(country rel3) j(score)
+
+    foreach s of numlist 1/5 {
+        capture confirm variable female_n_`s'
+        if _rc gen female_n_`s' = 0
+
+        capture confirm variable male_n_`s'
+        if _rc gen male_n_`s' = 0
+
+        capture confirm variable overlap_`s'
+        if _rc gen overlap_`s' = 0
+
+        capture confirm variable nonoverlap_`s'
+        if _rc gen nonoverlap_`s' = 0
+    }
+
+    gen female_total = female_n_1 + female_n_2 + female_n_3 + female_n_4 + female_n_5
+    gen male_total = male_n_1 + male_n_2 + male_n_3 + male_n_4 + male_n_5
+    gen total_n = female_total + male_total
+
+    gen overlap_total = overlap_1 + overlap_2 + overlap_3 + overlap_4 + overlap_5
+    gen people_in_overlap = 2 * overlap_total
+
+    gen people_not_overlap = nonoverlap_1 + nonoverlap_2 + nonoverlap_3 + nonoverlap_4 + nonoverlap_5
+
+    gen fraction_people_overlap = people_in_overlap / total_n
+    gen fraction_people_not_overlap = people_not_overlap / total_n
+
+    gen str20 item = "`v'"
+
+    order item country rel3 female_total male_total total_n overlap_1 overlap_2 overlap_3 overlap_4 overlap_5 overlap_total people_in_overlap people_not_overlap fraction_people_overlap fraction_people_not_overlap nonoverlap_1 nonoverlap_2 nonoverlap_3 nonoverlap_4 nonoverlap_5
+
+    format fraction_people_overlap fraction_people_not_overlap %9.3f
+
+>>>>>>> Stashed changes
     if `first' == 1 {
         save `overlap_all', replace
         local first = 0
@@ -661,15 +961,27 @@ foreach v of local items {
         append using `overlap_all'
         save `overlap_all', replace
     }
+<<<<<<< Updated upstream
     restore
 }
 use `overlap_all', clear
 sort item country rel3
+=======
+
+    restore
+}
+
+use `overlap_all', clear
+
+sort item country rel3
+
+>>>>>>> Stashed changes
 export excel using "`outdir'/ideology_overlap_tables.xlsx", sheet("overlap_wide") firstrow(variables) replace
 save "`outdir'/ideology_overlap_tables.dta", replace
 
 ** showcase the overlap for Sweden and South Korea
 capture restore, not
+<<<<<<< Updated upstream
 
 use "`outdir'/ideology_overlap_tables.dta", clear
 local outdir "$resultspath/summarystatistics"
@@ -691,6 +1003,36 @@ graph export "`outdir'/overlap_distribution_southkorea_labeled.png", name(overla
 set graphics on
 
 
+=======
+use "`outdir'/ideology_overlap_tables.dta", clear
+set graphics off
+
+*create graph for Sweden
+keep if country == 1
+
+set seed 12345
+*to make the names not sit perfectly on the line
+gen xrel = rel3 + (runiform() - 0.5) * 0.10
+
+twoway scatter fraction_people_overlap xrel, msymbol(i) mlabel(item) mlabsize(vsmall) mlabcolor(navy) mlabposition(0) xlabel(1 "Single" 2 "Dating" 3 "Stable", labsize(medsmall) noticks) ylabel(0(0.1)1, angle(horizontal) format(%3.1f) grid) yscale(range(0 1)) xscale(range(0.35 3.65)) xtitle("") ytitle("Fraction of people in overlap") title("Male-female overlap across variables", size(medium)) subtitle("Sweden", size(small)) legend(off) graphregion(color(white)) plotregion(color(white)) note("Each label is one variable.", size(vsmall))
+
+graph export "`outdir'/overlap_distribution_sweden_labeled.png", replace width(3000)
+
+
+use "`outdir'/ideology_overlap_tables.dta", clear
+
+*create graph for Korea
+keep if country == 5 
+*to make the names not sit perfectly on the line
+gen xrel = rel3 + (runiform() - 0.5) * 0.10
+
+set seed 12345
+twoway scatter fraction_people_overlap xrel, msymbol(i) mlabel(item) mlabsize(vsmall) mlabcolor(navy) mlabposition(0) xlabel(1 "Single" 2 "Dating" 3 "Stable", labsize(medsmall) noticks) ylabel(0(0.1)1, angle(horizontal) format(%3.1f) grid) yscale(range(0 1)) xscale(range(0.35 3.65)) xtitle("") ytitle("Fraction of people in overlap") title("Male-female overlap across variables", size(medium)) subtitle("South Korea", size(small)) legend(off) graphregion(color(white)) plotregion(color(white)) note("Each label is one variable.", size(vsmall))
+
+graph export "`outdir'/overlap_distribution_south Korea_labeled.png", replace width(3000)
+
+set graphics on
+>>>>>>> Stashed changes
 /*
 /********************************************************************
 1) Recode PNA/DK style values to missing for your PCA items
