@@ -141,8 +141,8 @@ gen fert_intent_life_dummy_5c = (fert_intent_life==5) if fert_intent_life!=.
 gen fert_intent_life_dummy_6c = (fert_intent_life==6) if fert_intent_life!=. 
 gen fert_intent_life_dummy_7c = (fert_intent_life==7) if fert_intent_life!=. 
 gen fert_intent_life_dummy_8c = (fert_intent_life>=8) if fert_intent_life!=. //Note: not sure if to make 8+ or to drop but I think better 8+
-*recode Q19
-recode Q19 (1 = 5 ) (2 = 2) (3 = 1) (4=3) (5=4) (99=99)
+*recode Q19 to make the most conservative answer 5 and least 1
+recode Q19 (3 = 5 ) (2 = 4) (4 5 = 2) (1 = 1) (99=99)
 *recode Q3F* and Q3M* to make sure that 5 is the most conservative answer and 1 the least
 recode Q3F* (1 = 5 ) (2 = 4) (3 = 3) (4=2) (5=1) (99=99)
 recode Q3M* (1 = 5 ) (2 = 4) (3 = 3) (4=2) (5=1) (99=99)
