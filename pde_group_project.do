@@ -205,6 +205,9 @@ foreach v of local items {
     if `"`vlabtext'"' == "" local vlabtext "`v'"
     local vlabshort = substr(`"`vlabtext'"',1,60)
     if length(`"`vlabtext'"') > 60 local vlabshort "`vlabshort'..."
+    *for Q19 lack of 3
+    if "`v'" == "Q19" local xlabopt_v "xlabel(1 2 4 5)"
+    else local xlabopt_v "`xlabopt'"
     *------------------------------*
     * Make the 6 small graphs (SEX)
     *------------------------------*
@@ -225,7 +228,7 @@ foreach v of local items {
             (connected pct x if sex==`female', sort lcolor(red)  msymbol(D) mcolor(red)) ///
             , title("Sweden - Single", size(small)) ///
               legend(off) xtitle("") ytitle("Percent") ///
-              `xlabopt' ylabel(0(20)100) ///
+              `xlabopt_v' ylabel(0(20)100) ///
               name(gS1, replace)
     restore
     * --- SWE / Dating
@@ -245,7 +248,7 @@ foreach v of local items {
             (connected pct x if sex==`female', sort lcolor(red)  msymbol(D) mcolor(red)) ///
             , title("Sweden - Dating", size(small)) ///
               legend(off) xtitle("") ytitle("Percent") ///
-              `xlabopt' ylabel(0(20)100) ///
+              `xlabopt_v' ylabel(0(20)100) ///
               name(gS2, replace)
     restore
     * --- SWE / Stable
@@ -265,7 +268,7 @@ foreach v of local items {
             (connected pct x if sex==`female', sort lcolor(red)  msymbol(D) mcolor(red)) ///
             , title("Sweden - Stable", size(small)) ///
               legend(off) xtitle("") ytitle("Percent") ///
-              `xlabopt' ylabel(0(20)100) ///
+              `xlabopt_v' ylabel(0(20)100) ///
               name(gS3, replace)
     restore
     * --- KOR / Single
@@ -285,7 +288,7 @@ gen x = .
             (connected pct x if sex==`female', sort lcolor(red)  msymbol(D) mcolor(red)) ///
             , title("South Korea - Single", size(small)) ///
               legend(off) xtitle("") ytitle("Percent") ///
-              `xlabopt' ylabel(0(20)100) ///
+              `xlabopt_v' ylabel(0(20)100) ///
               name(gS4, replace)
     restore
     * --- KOR / Dating
@@ -305,7 +308,7 @@ gen x = .
             (connected pct x if sex==`female', sort lcolor(red)  msymbol(D) mcolor(red)) ///
             , title("South Korea - Dating", size(small)) ///
               legend(off) xtitle("") ytitle("Percent") ///
-              `xlabopt' ylabel(0(20)100) ///
+              `xlabopt_v' ylabel(0(20)100) ///
               name(gS5, replace)
     restore
     * --- KOR / Stable
@@ -325,7 +328,7 @@ gen x = .
             (connected pct x if sex==`female', sort lcolor(red)  msymbol(D) mcolor(red)) ///
             , title("South Korea - Stable", size(small)) ///
               legend(off) xtitle("") ytitle("Percent") ///
-              `xlabopt' ylabel(0(20)100) ///
+             `xlabopt_v' ylabel(0(20)100) ///
               name(gS6, replace)
     restore
     graph combine gS1 gS2 gS3 gS4 gS5 gS6, ///
@@ -361,7 +364,7 @@ gen x = .
             (connected pct x if sex==`female' & edu3==3, sort lcolor(pink*0.5) msymbol(D) mcolor(pink*0.5)) ///
             , title("Sweden - Single", size(small)) ///
               legend(off) xtitle("") ytitle("Percent") ///
-              `xlabopt' ylabel(0(20)100) ///
+             `xlabopt_v' ylabel(0(20)100) ///
               name(gE1, replace)
     restore
     * --- SWE / Dating
@@ -385,7 +388,7 @@ gen x = .
             (connected pct x if sex==`female' & edu3==3, sort lcolor(pink*0.5) msymbol(D) mcolor(pink*0.5)) ///
             , title("Sweden - Dating", size(small)) ///
               legend(off) xtitle("") ytitle("Percent") ///
-              `xlabopt' ylabel(0(20)100) ///
+              `xlabopt_v' ylabel(0(20)100) ///
               name(gE2, replace)
     restore
     * --- SWE / Stable
@@ -409,7 +412,7 @@ gen x = .
             (connected pct x if sex==`female' & edu3==3, sort lcolor(pink*0.5) msymbol(D) mcolor(pink*0.5)) ///
             , title("Sweden - Stable", size(small)) ///
               legend(off) xtitle("") ytitle("Percent") ///
-              `xlabopt' ylabel(0(20)100) ///
+              `xlabopt_v' ylabel(0(20)100) ///
               name(gE3, replace)
     restore
     * --- KOR / Single
@@ -433,7 +436,7 @@ gen x = .
             (connected pct x if sex==`female' & edu3==3, sort lcolor(pink*0.5) msymbol(D) mcolor(pink*0.5)) ///
             , title("South Korea - Single", size(small)) ///
               legend(off) xtitle("") ytitle("Percent") ///
-              `xlabopt' ylabel(0(20)100) ///
+              `xlabopt_v' ylabel(0(20)100) ///
               name(gE4, replace)
     restore
     * --- KOR / Dating
@@ -457,7 +460,7 @@ gen x = .
             (connected pct x if sex==`female' & edu3==3, sort lcolor(pink*0.5) msymbol(D) mcolor(pink*0.5)) ///
             , title("South Korea - Dating", size(small)) ///
               legend(off) xtitle("") ytitle("Percent") ///
-              `xlabopt' ylabel(0(20)100) ///
+              `xlabopt_v' ylabel(0(20)100) ///
               name(gE5, replace)
     restore
     * --- KOR / Stable
@@ -481,7 +484,7 @@ gen x = .
             (connected pct x if sex==`female' & edu3==3, sort lcolor(pink*0.5) msymbol(D) mcolor(pink*0.5)) ///
             , title("South Korea - Stable", size(small)) ///
               legend(off) xtitle("") ytitle("Percent") ///
-              `xlabopt' ylabel(0(20)100) ///
+              `xlabopt_v' ylabel(0(20)100) ///
               name(gE6, replace)
     restore
     graph combine gE1 gE2 gE3 gE4 gE5 gE6, ///
