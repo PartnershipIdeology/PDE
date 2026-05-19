@@ -175,6 +175,13 @@ di as result "`items'"
 di as text "Keeping variables for graphing:"
 di as result "`keepvars'"
 keep `keepvars'
+* drop any observation with 99 in any item variable
+foreach v of local items {
+    capture confirm numeric variable `v'
+    if !_rc {
+        drop if `v' == 99
+    }
+}
 compress
 save "UNFPA_PILOT_pde_group_project.dta",replace
 /********************************************************************
@@ -683,7 +690,7 @@ graph drop _all
 
 set seed 12345
 *make the variable names more distant
-gen xrel = rel3 + (runiform() - 0.5) * 0.25
+gen xrel = rel3 + (runiform() - 0.5) * 0.5
 
 twoway scatter fraction_people_overlap xrel if country == 1, msymbol(i) mlabel(item) mlabsize(vsmall) mlabcolor(navy) mlabposition(0) xlabel(1 "Single" 2 "Dating" 3 "Stable", labsize(medsmall) noticks) ylabel(0(0.1)1, angle(horizontal) format(%3.1f) grid) yscale(range(0 1)) xscale(range(0.35 3.65)) xtitle("") ytitle("Fraction of people in overlap") title("Male-female overlap across variables", size(medium)) subtitle("Sweden", size(small)) legend(off) graphregion(color(white)) plotregion(color(white)) note("Each label is one variable.", size(vsmall)) name(overlap_sweden, replace)
 
