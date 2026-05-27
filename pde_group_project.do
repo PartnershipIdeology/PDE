@@ -1364,8 +1364,193 @@ foreach c of local countries {
     restore
 }
 
-set graphics on
+/********************************************************************
+SMART GRAPH:
+Gender ideology mismatch map
 
+x-axis: male mean - female mean
+    > 0 = men more conservative
+    < 0 = women more conservative
+
+y-axis: Wasserstein-1 distance
+    higher = larger female-male distributional gap
+
+Uses:
+    UNFPA_PILOT_pde_group_project.dta
+    wasserstein1_gender_by_country_relationship_long.dta
+********************************************************************/
+
+local outdir "$resultspath/summarystatistics"
+local figdir "$resultspath/figs"
+
+capture mkdir "$figdir"
+
+*------------------------------------------------------*
+* 1. Load Wasserstein results
+*------------------------------------------------------*
+
+use "`outdir'/wasserstein1_gender_by_country_relationship_long.dta", clear
+
+keep item country country_label rel3 relationship W1 female_n male_n
+
+tempfile w1data
+save `w1data', replace
+
+
+*------------------------------------------------------*
+* 2. Recreate male-female mean differences
+*------------------------------------------------------*
+
+use "UNFPA_PILOT_pde_group_project.dta", clear
+
+local w1_items ""
+
+capture ds Q3Mr*
+if !_rc local w1_items "`w1_items' `r(varlist)'"
+
+capture ds Q3Fr*
+if !_rc local w1_items "`w1_items' `r(varlist)'"
+
+foreach v in Q16r7 Q16r8 Q19 {
+    capture confirm variable `v'
+    if !_rc local w1_items "`w1_items' `v'"
+}
+
+local w1_items : list uniq w1_items
+
+tempfile mean_all
+local first = 1
+
+foreach v of local w1_items {
+
+    preserve
+
+        keep country rel3 sex `v'
+        rename `v' score
+
+        keep if inlist(sex, 1, 2)
+        keep if inlist(rel3, 1, 2, 3)
+        keep if inrange(score, 1, 5)
+        drop if missing(country, rel3, sex, score)
+
+        collapse ///
+            (mean) mean = score ///
+            (count) n = score, ///
+            by(country rel3 sex)
+
+        reshape wide mean n, i(country rel3) j(sex)
+
+        capture confirm variable mean1
+        if _rc gen mean1 = .
+
+        capture confirm variable mean2
+        if _rc gen mean2 = .
+
+        capture confirm variable n1
+        if _rc gen n1 = 0
+
+        capture confirm variable n2
+        if _rc gen n2 = 0
+
+        gen diff_mean_male_female = mean2 - mean1
+        gen str40 item = "`v'"
+
+        rename mean1 female_mean
+        rename mean2 male_mean
+        rename n1 female_n_mean
+        rename n2 male_n_mean
+
+        keep item country rel3 female_mean male_mean ///
+             diff_mean_male_female female_n_mean male_n_mean
+
+        if `first' == 1 {
+            save `mean_all', replace
+            local first = 0
+        }
+        else {
+            append using `mean_all'
+            save `mean_all', replace
+        }
+
+    restore
+}
+
+use `mean_all', clear
+
+merge 1:1 item country rel3 using `w1data', keep(match) nogen
+
+order item country country_label rel3 relationship ///
+      female_n male_n female_mean male_mean diff_mean_male_female W1
+
+format female_mean male_mean diff_mean_male_female W1 %9.3f
+
+save "`outdir'/gender_gap_w1_meandiff.dta", replace
+
+
+*------------------------------------------------------*
+* 3. Label only the strongest gaps
+*------------------------------------------------------*
+
+use "`outdir'/gender_gap_w1_meandiff.dta", clear
+
+gsort country rel3 -W1
+by country rel3: gen rank_w1_rel = _n
+
+gen str40 label_item = ""
+replace label_item = item if rank_w1_rel <= 5
+
+gen str30 direction = ""
+replace direction = "Men more conservative" if diff_mean_male_female > 0
+replace direction = "Women more conservative" if diff_mean_male_female < 0
+replace direction = "Same mean" if diff_mean_male_female == 0
+
+
+*------------------------------------------------------*
+* 4. Produce one smart graph per country
+*------------------------------------------------------*
+
+levelsof country, local(countries)
+
+foreach c of local countries {
+
+    preserve
+
+        keep if country == `c'
+
+        local cname "`=country_label[1]'"
+
+        twoway ///
+            (scatter W1 diff_mean_male_female if rel3 == 1, ///
+                msymbol(O) mcolor(navy%65) msize(medium) ///
+                mlabel(label_item) mlabsize(vsmall) mlabposition(0) mlabcolor(navy)) ///
+            (scatter W1 diff_mean_male_female if rel3 == 2, ///
+                msymbol(D) mcolor(maroon%65) msize(medium) ///
+                mlabel(label_item) mlabsize(vsmall) mlabposition(0) mlabcolor(maroon)) ///
+            (scatter W1 diff_mean_male_female if rel3 == 3, ///
+                msymbol(T) mcolor(green%65) msize(medium) ///
+                mlabel(label_item) mlabsize(vsmall) mlabposition(0) mlabcolor(green)) ///
+            , ///
+            xline(0, lcolor(gs8) lpattern(dash)) ///
+            yline(0.50, lcolor(gs12) lpattern(shortdash)) ///
+            xlabel(, labsize(small)) ///
+            ylabel(, angle(horizontal) labsize(small)) ///
+            xtitle("Mean difference: male - female", size(small)) ///
+            ytitle("Wasserstein-1 distance", size(small)) ///
+            title("Gender ideology mismatch map", size(medium)) ///
+            subtitle("`cname'", size(small)) ///
+            legend(order(1 "Single" 2 "Dating" 3 "Stable") rows(1) size(small)) ///
+            note("Right of zero: men more conservative. Left of zero: women more conservative. Higher W1 = larger distributional gap.", size(vsmall)) ///
+            graphregion(color(white)) ///
+            plotregion(color(white)) ///
+            name(gapmap_`c', replace)
+
+        graph export "`figdir'/gender_mismatch_map_country_`c'.png", ///
+            name(gapmap_`c') replace width(3200)
+
+    restore
+}
+
+set graphics on
 
 /*
 /********************************************************************
