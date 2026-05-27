@@ -704,6 +704,668 @@ graph export "`outdir'/overlap_distribution_southkorea_labeled.png", name(overla
 
 set graphics on
 
+/********************************************************************
+WASSERSTEIN-1 / EARTH MOVER'S DISTANCE
+Female vs Male distributions by:
+    country x relationship status x item
+
+This chunk starts from the cleaned project dataset.
+
+Variables used from UNFPA_PILOT_pde_group_project.dta:
+    country
+    sex
+    rel3
+    Q3Mr*
+    Q3Fr*
+    Q16r7
+    Q16r8
+    Q19
+********************************************************************/
+
+use "UNFPA_PILOT_pde_group_project.dta", clear
+
+local outdir "$resultspath/summarystatistics"
+
+capture mkdir "$outdir"
+
+local female 1
+local male   2
+
+*------------------------------------------------------*
+* 1. Check required grouping variables exist
+*------------------------------------------------------*
+
+foreach v in country sex rel3 {
+    capture confirm variable `v'
+    if _rc {
+        di as error "Variable `v' not found in UNFPA_PILOT_pde_group_project.dta"
+        exit 111
+    }
+}
+
+**------------------------------------------------------*
+* 2. Define Wasserstein / EMD item list
+*------------------------------------------------------*
+
+local w1_items ""
+
+capture ds Q3Mr*
+if !_rc local w1_items "`w1_items' `r(varlist)'"
+
+capture ds Q3Fr*
+if !_rc local w1_items "`w1_items' `r(varlist)'"
+
+foreach v in Q16r7 Q16r8 Q19 {
+    capture confirm variable `v'
+    if !_rc local w1_items "`w1_items' `v'"
+}
+
+local w1_items : list uniq w1_items
+
+if "`w1_items'" == "" {
+    di as error "No Wasserstein items found."
+    exit 111
+}
+
+di as text "Items used for Wasserstein-1 / EMD:"
+di as result "`w1_items'"
+
+
+*------------------------------------------------------*
+* 3. Program to calculate Wasserstein-1 for two groups
+*------------------------------------------------------*
+
+capture program drop w1_twogroups
+program define w1_twogroups, rclass
+    syntax varname(numeric) [if], GROUP(varname numeric) G1(integer) G2(integer)
+
+    marksample touse
+
+    preserve
+
+        keep if `touse'
+        keep `varlist' `group'
+        keep if !missing(`varlist', `group')
+        keep if inlist(`group', `g1', `g2')
+
+        quietly count if `group' == `g1'
+        local n1 = r(N)
+
+        quietly count if `group' == `g2'
+        local n2 = r(N)
+
+        if `n1' == 0 | `n2' == 0 {
+            restore
+            return scalar W1 = .
+            return scalar N1 = `n1'
+            return scalar N2 = `n2'
+            exit
+        }
+
+        contract `varlist' `group', freq(n)
+
+        fillin `varlist' `group'
+        replace n = 0 if missing(n)
+
+        bysort `group': egen total = total(n)
+        gen double p = n / total
+
+        keep `varlist' `group' p
+
+        reshape wide p, i(`varlist') j(`group')
+
+        capture confirm variable p`g1'
+        if _rc gen double p`g1' = 0
+
+        capture confirm variable p`g2'
+        if _rc gen double p`g2' = 0
+
+        replace p`g1' = 0 if missing(p`g1')
+        replace p`g2' = 0 if missing(p`g2')
+
+        sort `varlist'
+
+        gen double F1 = sum(p`g1')
+        gen double F2 = sum(p`g2')
+
+        gen double absdiff = abs(F1 - F2)
+        gen double dx = `varlist'[_n+1] - `varlist' if _n < _N
+        gen double contrib = absdiff * dx if _n < _N
+        replace contrib = 0 if missing(contrib)
+
+        quietly summarize contrib, meanonly
+        local w1 = r(sum)
+
+    restore
+
+    return scalar W1 = `w1'
+    return scalar N1 = `n1'
+    return scalar N2 = `n2'
+end
+
+
+*------------------------------------------------------*
+* 4. Calculate W1 by country x rel3 x item
+*------------------------------------------------------*
+
+tempfile w1_all
+tempname handle
+
+postfile `handle' ///
+    str40 item ///
+    int country ///
+    str80 country_label ///
+    int rel3 ///
+    str20 relationship ///
+    double W1 ///
+    int female_n ///
+    int male_n ///
+    using `w1_all', replace
+
+levelsof country if !missing(country), local(countries)
+levelsof rel3 if inlist(rel3, 1, 2, 3), local(rels)
+
+local countrylbl : value label country
+local rellbl     : value label rel3
+
+foreach c of local countries {
+
+    local cname "`c'"
+    if "`countrylbl'" != "" {
+        local cname : label `countrylbl' `c'
+        if `"`cname'"' == "" local cname "`c'"
+    }
+
+    foreach r of local rels {
+
+        local rname "`r'"
+        if "`rellbl'" != "" {
+            local rname : label `rellbl' `r'
+            if `"`rname'"' == "" local rname "`r'"
+        }
+
+        foreach v of local w1_items {
+
+            quietly w1_twogroups `v' ///
+                if country == `c' ///
+                & rel3 == `r' ///
+                & inlist(sex, `female', `male') ///
+                & inrange(`v', 1, 5), ///
+                group(sex) g1(`female') g2(`male')
+
+            post `handle' ///
+                ("`v'") ///
+                (`c') ///
+                (`"`cname'"') ///
+                (`r') ///
+                (`"`rname'"') ///
+                (r(W1)) ///
+                (r(N1)) ///
+                (r(N2))
+        }
+    }
+}
+
+postclose `handle'
+
+
+*------------------------------------------------------*
+* 5. Open and label results
+*------------------------------------------------------*
+
+use `w1_all', clear
+
+format W1 %9.4f
+
+label var item "Item"
+label var country "Country code"
+label var country_label "Country"
+label var rel3 "Relationship status code"
+label var relationship "Relationship status"
+label var female_n "Female N"
+label var male_n "Male N"
+label var W1 "Wasserstein-1 distance: Female vs Male"
+
+order item country country_label rel3 relationship female_n male_n W1
+sort item country rel3
+
+
+*------------------------------------------------------*
+* 6. Export long results
+*------------------------------------------------------*
+
+export excel using "`outdir'/wasserstein1_gender_by_country_relationship.xlsx", ///
+    sheet("w1_long") firstrow(variables) replace
+
+save "`outdir'/wasserstein1_gender_by_country_relationship_long.dta", replace
+
+
+*------------------------------------------------------*
+* 7. Create wide table: Single, Dating, Stable side-by-side
+*------------------------------------------------------*
+
+preserve
+
+keep item country country_label rel3 female_n male_n W1
+
+reshape wide W1 female_n male_n, i(item country country_label) j(rel3)
+
+capture rename W11 W1_single
+capture rename W12 W1_dating
+capture rename W13 W1_stable
+
+capture rename female_n1 female_n_single
+capture rename female_n2 female_n_dating
+capture rename female_n3 female_n_stable
+
+capture rename male_n1 male_n_single
+capture rename male_n2 male_n_dating
+capture rename male_n3 male_n_stable
+
+order item country country_label ///
+    W1_single female_n_single male_n_single ///
+    W1_dating female_n_dating male_n_dating ///
+    W1_stable female_n_stable male_n_stable
+
+format W1_single W1_dating W1_stable %9.4f
+
+export excel using "`outdir'/wasserstein1_gender_by_country_relationship.xlsx", ///
+    sheet("w1_wide") firstrow(variables) sheetreplace
+
+save "`outdir'/wasserstein1_gender_by_country_relationship_wide.dta", replace
+
+restore
+
+
+*------------------------------------------------------*
+* 8. Display largest gender distribution gaps
+*------------------------------------------------------*
+
+gsort -W1
+
+list item country_label relationship female_n male_n W1 in 1/30, ///
+    sepby(country_label relationship)
+
+di as result "Done. Wasserstein-1 / EMD tables saved in:"
+di as result "`outdir'/wasserstein1_gender_by_country_relationship.xlsx"
+
+
+set graphics off
+
+/********************************************************************
+RELATIONSHIP-STATUS HEATMAP
+Main purpose:
+    Compare female-male Wasserstein-1 distance across:
+        Single vs Dating vs Stable
+
+Rows:
+    variables
+
+Columns:
+    relationship status
+
+Cell:
+    W1 distance
+
+One graph per country.
+********************************************************************/
+
+capture restore, not
+
+local outdir "$resultspath/summarystatistics"
+local figdir "$resultspath/figs"
+
+capture mkdir "$figdir"
+
+use "`outdir'/wasserstein1_gender_by_country_relationship_long.dta", clear
+
+keep if inlist(rel3, 1, 2, 3)
+drop if missing(W1)
+
+levelsof country, local(countries)
+
+foreach c of local countries {
+
+    preserve
+
+        keep if country == `c'
+
+        local cname = country_label[1]
+
+        *------------------------------------------------------*
+        * Order items by their maximum W1 within this country
+        *------------------------------------------------------*
+
+        bysort item: egen maxW1_item = max(W1)
+        egen tag_item = tag(item)
+
+        gsort -maxW1_item item
+
+        gen item_rank_tmp = sum(tag_item)
+        bysort item: egen item_order = max(item_rank_tmp)
+
+        quietly summarize item_order
+        gen y = r(max) + 1 - item_order
+
+        *------------------------------------------------------*
+        * W1 categories for heat intensity
+        *------------------------------------------------------*
+
+        gen W1cat = .
+        replace W1cat = 1 if W1 < 0.25
+        replace W1cat = 2 if W1 >= 0.25 & W1 < 0.50
+        replace W1cat = 3 if W1 >= 0.50 & W1 < 0.75
+        replace W1cat = 4 if W1 >= 0.75 & W1 < 1.00
+        replace W1cat = 5 if W1 >= 1.00
+
+        gen str5 W1label = string(W1, "%4.2f")
+
+        *------------------------------------------------------*
+        * Y-axis labels: all variable names
+        *------------------------------------------------------*
+
+        levelsof y, local(yvals)
+
+        local ylabels ""
+
+        foreach yy of local yvals {
+            levelsof item if y == `yy', local(thisitem) clean
+            local ylabels `"`ylabels' `yy' "`thisitem'""'
+        }
+
+        *------------------------------------------------------*
+        * Heatmap graph
+        *------------------------------------------------------*
+
+        twoway ///
+            (scatter y rel3 if W1cat == 1, ///
+                msymbol(S) msize(huge) mcolor(gs15)) ///
+            (scatter y rel3 if W1cat == 2, ///
+                msymbol(S) msize(huge) mcolor(gs13)) ///
+            (scatter y rel3 if W1cat == 3, ///
+                msymbol(S) msize(huge) mcolor(gs10)) ///
+            (scatter y rel3 if W1cat == 4, ///
+                msymbol(S) msize(huge) mcolor(gs7)) ///
+            (scatter y rel3 if W1cat == 5, ///
+                msymbol(S) msize(huge) mcolor(gs4)) ///
+            (scatter y rel3, ///
+                msymbol(i) ///
+                mlabel(W1label) ///
+                mlabposition(0) ///
+                mlabsize(vsmall) ///
+                mlabcolor(black)) ///
+            , ///
+            xlabel(1 "Single" 2 "Dating" 3 "Stable", labsize(medsmall)) ///
+            ylabel(`ylabels', angle(horizontal) labsize(vsmall)) ///
+            xscale(range(0.5 3.5)) ///
+            xtitle("") ///
+            ytitle("") ///
+            title("Female-male ideological distance by relationship status", size(medium)) ///
+            subtitle("`cname'", size(small)) ///
+            legend(order(1 "W1 < 0.25" ///
+                         2 "0.25-0.49" ///
+                         3 "0.50-0.74" ///
+                         4 "0.75-0.99" ///
+                         5 "W1 >= 1.00") ///
+                   rows(1) size(vsmall)) ///
+            note("Cell values are Wasserstein-1 distances. Darker cells indicate larger female-male distributional gaps.", size(vsmall)) ///
+            graphregion(color(white)) ///
+            plotregion(color(white)) ///
+            name(w1_heatmap_`c', replace)
+
+        graph export "`figdir'/w1_relationship_heatmap_country_`c'.png", ///
+            name(w1_heatmap_`c') replace width(4200)
+
+    restore
+}
+/********************************************************************
+CLEVELAND DOT PLOT:
+Female-male Wasserstein distance by relationship status
+
+Main point:
+    Compare Single vs Dating vs Stable for each item.
+
+Rows:
+    variables
+
+x-axis:
+    W1 female-male distance
+
+Markers:
+    Single / Dating / Stable
+
+Grey line:
+    range from smallest to largest W1 for that variable
+********************************************************************/
+
+capture restore, not
+
+local outdir "$resultspath/summarystatistics"
+local figdir "$resultspath/figs"
+
+capture mkdir "$figdir"
+
+use "`outdir'/wasserstein1_gender_by_country_relationship_long.dta", clear
+
+keep if inlist(rel3, 1, 2, 3)
+drop if missing(W1)
+
+levelsof country, local(countries)
+
+foreach c of local countries {
+
+    preserve
+
+        keep if country == `c'
+
+        local cname "`=country_label[1]'"
+
+        *------------------------------------------------------*
+        * Order variables by how much W1 varies across
+        * Single / Dating / Stable.
+        * This puts the most relationship-relevant items on top.
+        *------------------------------------------------------*
+
+        bysort item: egen W1max = max(W1)
+        bysort item: egen W1min = min(W1)
+        gen W1range = W1max - W1min
+
+        egen tag_item = tag(item)
+
+        gsort -W1range -W1max item
+
+        gen rank_tmp = sum(tag_item)
+        bysort item: egen item_order = max(rank_tmp)
+
+        quietly summarize item_order
+        gen y = r(max) + 1 - item_order
+
+        *------------------------------------------------------*
+        * Y-axis labels: all variable names
+        *------------------------------------------------------*
+
+        levelsof y, local(yvals)
+        local ylabels ""
+
+        foreach yy of local yvals {
+            levelsof item if y == `yy', local(thisitem) clean
+            local ylabels `"`ylabels' `yy' "`thisitem'""'
+        }
+
+        *------------------------------------------------------*
+        * Optional value labels only for large distances
+        *------------------------------------------------------*
+
+        gen str5 W1label = string(W1, "%4.2f")
+        gen str5 W1label_big = ""
+        replace W1label_big = W1label if W1 >= 0.50
+
+        quietly summarize W1
+        local xmax = ceil(r(max)*10)/10 + 0.10
+        if `xmax' < 0.80 local xmax = 0.80
+
+        *------------------------------------------------------*
+        * Graph
+        *------------------------------------------------------*
+
+        twoway ///
+            (pcspike y W1min y W1max if tag_item == 1, ///
+                lcolor(gs12) lwidth(medthin)) ///
+            (scatter y W1 if rel3 == 1, ///
+                msymbol(O) msize(medium) mcolor(navy)) ///
+            (scatter y W1 if rel3 == 2, ///
+                msymbol(D) msize(medium) mcolor(maroon)) ///
+            (scatter y W1 if rel3 == 3, ///
+                msymbol(T) msize(medium) mcolor(forest_green)) ///
+            (scatter y W1, ///
+                msymbol(i) ///
+                mlabel(W1label_big) ///
+                mlabposition(12) ///
+                mlabsize(vsmall) ///
+                mlabcolor(black)) ///
+            , ///
+            xlabel(0(0.25)`xmax', labsize(small)) ///
+            ylabel(`ylabels', angle(horizontal) labsize(small)) ///
+            xscale(range(0 `xmax')) ///
+            xtitle("Female-male Wasserstein-1 distance", size(small)) ///
+            ytitle("") ///
+            title("Female-male ideological distance by relationship status", size(medium)) ///
+            subtitle("`cname'", size(small)) ///
+            legend(order(2 "Single" 3 "Dating" 4 "Stable") ///
+                   rows(1) size(small) position(6)) ///
+            note("Dots farther right indicate larger female-male distributional distance. Grey line shows the range across relationship statuses. Values shown for W1 >= 0.50.", size(vsmall)) ///
+            graphregion(color(white)) ///
+            plotregion(color(white)) ///
+            name(w1_dotplot_`c', replace)
+
+        graph export "`figdir'/w1_relationship_dotplot_country_`c'.png", ///
+            name(w1_dotplot_`c') replace width(4200)
+
+    restore
+}
+
+/********************************************************************
+OVERLAP + WASSERSTEIN GRAPH
+
+x-axis:
+    People not in female-male overlap, %
+
+y-axis:
+    Wasserstein-1 distance
+
+Markers:
+    Single / Dating / Stable
+
+Interpretation:
+    Upper-right = strongest female-male mismatch
+********************************************************************/
+
+capture restore, not
+
+local outdir "$resultspath/summarystatistics"
+local figdir "$resultspath/figs"
+
+capture mkdir "$figdir"
+
+*------------------------------------------------------*
+* 1. Load overlap results
+*------------------------------------------------------*
+
+use "`outdir'/ideology_overlap_tables.dta", clear
+
+keep item country rel3 fraction_people_not_overlap fraction_people_overlap ///
+     female_total male_total total_n
+
+gen pct_people_not_overlap = 100 * fraction_people_not_overlap
+gen pct_people_overlap     = 100 * fraction_people_overlap
+
+tempfile overlapdata
+save `overlapdata', replace
+
+
+*------------------------------------------------------*
+* 2. Load Wasserstein results
+*------------------------------------------------------*
+
+use "`outdir'/wasserstein1_gender_by_country_relationship_long.dta", clear
+
+keep item country country_label rel3 relationship W1 female_n male_n
+
+*------------------------------------------------------*
+* 3. Merge W1 with overlap
+*------------------------------------------------------*
+
+merge 1:1 item country rel3 using `overlapdata'
+
+keep if _merge == 3
+drop _merge
+
+keep if inlist(rel3, 1, 2, 3)
+drop if missing(W1, pct_people_not_overlap)
+
+format W1 %9.3f
+format pct_people_not_overlap pct_people_overlap %9.1f
+
+save "`outdir'/overlap_wasserstein_combined.dta", replace
+
+
+*------------------------------------------------------*
+* 4. Plot one graph per country
+*------------------------------------------------------*
+
+levelsof country, local(countries)
+
+foreach c of local countries {
+
+    preserve
+
+        keep if country == `c'
+
+        local cname "`=country_label[1]'"
+
+        quietly summarize pct_people_not_overlap
+        local xmax = ceil(r(max)/10)*10
+        if `xmax' < 40 local xmax = 40
+        if `xmax' > 100 local xmax = 100
+
+        quietly summarize W1
+        local ymax = ceil(r(max)*10)/10 + 0.10
+        if `ymax' < 0.80 local ymax = 0.80
+
+        twoway ///
+            (scatter W1 pct_people_not_overlap if rel3 == 1, ///
+                msymbol(O) msize(medium) mcolor(navy%75) ///
+                mlabel(item) mlabsize(tiny) mlabposition(12) mlabcolor(navy)) ///
+            (scatter W1 pct_people_not_overlap if rel3 == 2, ///
+                msymbol(D) msize(medium) mcolor(maroon%75) ///
+                mlabel(item) mlabsize(tiny) mlabposition(12) mlabcolor(maroon)) ///
+            (scatter W1 pct_people_not_overlap if rel3 == 3, ///
+                msymbol(T) msize(medium) mcolor(forest_green%75) ///
+                mlabel(item) mlabsize(tiny) mlabposition(12) mlabcolor(forest_green)) ///
+            , ///
+            xlabel(0(10)`xmax', labsize(small)) ///
+            ylabel(0(0.25)`ymax', angle(horizontal) labsize(small)) ///
+            xscale(range(0 `xmax')) ///
+            yscale(range(0 `ymax')) ///
+            xtitle("People not in female-male overlap (%)", size(small)) ///
+            ytitle("Wasserstein-1 distance", size(small)) ///
+            title("Female-male mismatch: overlap and Wasserstein distance", size(medium)) ///
+            subtitle("`cname'", size(small)) ///
+            legend(order(1 "Single" 2 "Dating" 3 "Stable") ///
+                   rows(1) size(small) position(6)) ///
+            note("Upper-right = larger share outside overlap and larger distributional distance.", size(vsmall)) ///
+            graphregion(color(white)) ///
+            plotregion(color(white)) ///
+            name(overlap_w1_`c', replace)
+
+        graph export "`figdir'/overlap_wasserstein_country_`c'.png", ///
+            name(overlap_w1_`c') replace width(4200)
+
+    restore
+}
+
+set graphics on
+
 
 /*
 /********************************************************************
