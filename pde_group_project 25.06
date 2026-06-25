@@ -1841,32 +1841,32 @@ preserve
     gen difference_stable_minus_singles = ///
         stable_fraction_not_overlap - singles_fraction_not_overlap
 
-    gen difference_stable_minus_singles_pct = ///
+    gen diff_stable_minus_singles_pct = ///
         stable_percent_not_overlap - singles_percent_not_overlap
 
     format singles_fraction_not_overlap stable_fraction_not_overlap ///
            difference_stable_minus_singles %9.3f
 
     format singles_percent_not_overlap stable_percent_not_overlap ///
-           difference_stable_minus_singles_pct %9.2f
+           diff_stable_minus_singles_pct %9.2f
 
     order item country country_name ///
           singles_total_n stable_total_n ///
           singles_fraction_not_overlap stable_fraction_not_overlap ///
           difference_stable_minus_singles ///
           singles_percent_not_overlap stable_percent_not_overlap ///
-          difference_stable_minus_singles_pct
+          diff_stable_minus_singles_pct
 
     sort country item
 
-    save "`outdir'/ideology_point5_singles_stable_wide.dta", replace
+    save "`outdir'/ideology_singles_stable_wide.dta", replace
 
-    export excel using "`outdir'/ideology_point5_singles_stable.xlsx", ///
+    export excel using "`outdir'/ideology_singles_stable.xlsx", ///
         sheet("wide_comparison") firstrow(variables) sheetreplace
 
     local lastrow = _N + 1
 
-    putexcel set "`outdir'/ideology_point5_singles_stable.xlsx", ///
+    putexcel set "`outdir'/ideology_singles_stable.xlsx", ///
         sheet("wide_comparison") modify
 
     * Format fractions and percentages
@@ -1874,7 +1874,113 @@ preserve
     putexcel I2:K`lastrow', nformat(number_d2)
 
 restore
+/********************************************************************
+POINT v GRAPH:
+Singles vs Stable relationships
+Trim x-axis to actual questions only
+********************************************************************/
 
+capture restore, not
+
+local outdir "$resultspath/summarystatistics"
+local figdir "$resultspath/figs"
+
+use "`outdir'/ideology_singles_stable_wide.dta", clear
+
+* Create overlap variables from non-overlap variables
+gen singles_fraction_overlap = 1 - singles_fraction_not_overlap
+gen stable_fraction_overlap  = 1 - stable_fraction_not_overlap
+
+
+/********************************************************************
+Sweden
+********************************************************************/
+
+preserve
+
+    keep if country == 1
+
+    sort item
+    egen item_id = group(item), label
+
+    quietly summarize item_id, meanonly
+    local maxitem = r(max)
+
+    twoway ///
+        (scatter singles_fraction_overlap item_id, ///
+            msymbol(O) msize(small)) ///
+        (scatter stable_fraction_overlap item_id, ///
+            msymbol(D) msize(small)) ///
+        , ///
+        xlabel(1(1)`maxitem', valuelabel angle(45) labsize(vsmall)) ///
+        xscale(range(0.5 `=`maxitem' + 0.5')) ///
+        ylabel(0(0.1)1, angle(horizontal) format(%3.1f)) ///
+        yscale(range(0 1)) ///
+        xtitle("Question") ///
+        ytitle("Fraction in overlap") ///
+        title("Ideological overlap: Singles vs Stable", size(medium)) ///
+        subtitle("Sweden", size(small)) ///
+        legend(order(1 "Singles" 2 "Stable relationships") size(small)) ///
+        graphregion(color(white)) plotregion(color(white)) ///
+        name(comparison_sweden_overlap, replace)
+
+    graph export "`figdir'/comparison_singles_vs_stable_sweden_overlap.png", ///
+        name(comparison_sweden_overlap) replace width(3000)
+
+restore
+
+
+/********************************************************************
+South Korea
+********************************************************************/
+
+preserve
+
+    keep if country == 5
+
+    sort item
+    egen item_id = group(item), label
+
+    quietly summarize item_id, meanonly
+    local maxitem = r(max)
+
+    twoway ///
+        (scatter singles_fraction_overlap item_id, ///
+            msymbol(O) msize(small)) ///
+        (scatter stable_fraction_overlap item_id, ///
+            msymbol(D) msize(small)) ///
+        , ///
+        xlabel(1(1)`maxitem', valuelabel angle(45) labsize(vsmall)) ///
+        xscale(range(0.5 `=`maxitem' + 0.5')) ///
+        ylabel(0(0.1)1, angle(horizontal) format(%3.1f)) ///
+        yscale(range(0 1)) ///
+        xtitle("Question") ///
+        ytitle("Fraction in overlap") ///
+        title("Ideological overlap: Singles vs Stable", size(medium)) ///
+        subtitle("South Korea", size(small)) ///
+        legend(order(1 "Singles" 2 "Stable relationships") size(small)) ///
+        graphregion(color(white)) plotregion(color(white)) ///
+        name(comparison_korea_overlap, replace)
+
+    graph export "`figdir'/comparison_singles_vs_stable_korea_overlap.png", ///
+        name(comparison_korea_overlap) replace width(3000)
+
+restore
+
+/********************************************************************
+Combine Sweden and South Korea graphs into one figure
+********************************************************************/
+		
+graph combine comparison_sweden_overlap comparison_korea_overlap, ///
+    cols(2) ///
+    title("Ideological overlap: Singles vs Stable", size(medium)) ///
+    graphregion(color(white)) ///
+    name(comparison_overlap_combined, replace)
+
+graph export "`figdir'/comparison_singles_vs_stable_overlap_combined.png", ///
+    name(comparison_overlap_combined) replace width(4200)
+
+	
 /*
 /********************************************************************
 1) Recode PNA/DK style values to missing for your PCA items
@@ -1962,3 +2068,7 @@ corr PC1 PC2 PC3 PC4
 * PC4: Work–family gender-role norms (Q3Fr4 & Q3Mr4: parents working full-time with children under age 3)
 
 */
+
+
+
+
