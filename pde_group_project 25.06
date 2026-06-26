@@ -1887,13 +1887,10 @@ local figdir "$resultspath/figs"
 
 use "`outdir'/ideology_singles_stable_wide.dta", clear
 
-* Create overlap variables from non-overlap variables
-gen singles_fraction_overlap = 1 - singles_fraction_not_overlap
-gen stable_fraction_overlap  = 1 - stable_fraction_not_overlap
 
-
+/*
 /********************************************************************
-Sweden
+Sweden - natural mismatch comparison
 ********************************************************************/
 
 preserve
@@ -1906,32 +1903,40 @@ preserve
     quietly summarize item_id, meanonly
     local maxitem = r(max)
 
+* Make y-axis easier to read while keeping fractions
+ quietly summarize singles_fraction_not_overlap stable_fraction_not_overlap, meanonly
+ local ymax = ceil(r(max)*20)/20
+    if `ymax' < 0.30 local ymax = 0.30
+	
+
     twoway ///
-        (scatter singles_fraction_overlap item_id, ///
+        (scatter singles_fraction_not_overlap item_id, ///
             msymbol(O) msize(small)) ///
-        (scatter stable_fraction_overlap item_id, ///
+        (scatter stable_fraction_not_overlap item_id, ///
             msymbol(D) msize(small)) ///
         , ///
         xlabel(1(1)`maxitem', valuelabel angle(45) labsize(vsmall)) ///
         xscale(range(0.5 `=`maxitem' + 0.5')) ///
-        ylabel(0(0.1)1, angle(horizontal) format(%3.1f)) ///
-        yscale(range(0 1)) ///
+        ylabel(0(0.05)`ymax', angle(horizontal) format(%3.2f) grid) ///
+        yscale(range(0 `ymax')) ///
         xtitle("Question") ///
-        ytitle("Fraction in overlap") ///
-        title("Ideological overlap: Singles vs Stable", size(medium)) ///
+        ytitle("Fraction in mismatch") ///
+        title("Ideological mismatch", size(medium)) ///
         subtitle("Sweden", size(small)) ///
-        legend(order(1 "Singles" 2 "Stable relationships") size(small)) ///
-        graphregion(color(white)) plotregion(color(white)) ///
-        name(comparison_sweden_overlap, replace)
+        legend(order(1 "Singles" 2 "Stable relationships") ///
+               rows(1) size(small) position(6)) ///
+        graphregion(color(white)) ///
+        plotregion(color(white)) ///
+        name(comparison_sweden_mismatch, replace)
 
-    graph export "`figdir'/comparison_singles_vs_stable_sweden_overlap.png", ///
-        name(comparison_sweden_overlap) replace width(3000)
+    graph export "`figdir'/comparison_singles_vs_stable_sweden_mismatch.png", ///
+        name(comparison_sweden_mismatch) replace width(3000)
 
 restore
 
 
 /********************************************************************
-South Korea
+South Korea - natural mismatch comparison
 ********************************************************************/
 
 preserve
@@ -1944,43 +1949,203 @@ preserve
     quietly summarize item_id, meanonly
     local maxitem = r(max)
 
+    * Make y-axis easier to read while keeping fractions
+    quietly summarize singles_fraction_not_overlap stable_fraction_not_overlap, meanonly
+    local ymax = ceil(r(max)*20)/20
+    if `ymax' < 0.30 local ymax = 0.30
+
     twoway ///
-        (scatter singles_fraction_overlap item_id, ///
+        (scatter singles_fraction_not_overlap item_id, ///
             msymbol(O) msize(small)) ///
-        (scatter stable_fraction_overlap item_id, ///
+        (scatter stable_fraction_not_overlap item_id, ///
             msymbol(D) msize(small)) ///
         , ///
         xlabel(1(1)`maxitem', valuelabel angle(45) labsize(vsmall)) ///
         xscale(range(0.5 `=`maxitem' + 0.5')) ///
-        ylabel(0(0.1)1, angle(horizontal) format(%3.1f)) ///
-        yscale(range(0 1)) ///
+        ylabel(0(0.05)`ymax', angle(horizontal) format(%3.2f) grid) ///
+        yscale(range(0 `ymax')) ///
         xtitle("Question") ///
-        ytitle("Fraction in overlap") ///
-        title("Ideological overlap: Singles vs Stable", size(medium)) ///
+        ytitle("Fraction in mismatch") ///
+        title("Ideological mismatch", size(medium)) ///
         subtitle("South Korea", size(small)) ///
-        legend(order(1 "Singles" 2 "Stable relationships") size(small)) ///
-        graphregion(color(white)) plotregion(color(white)) ///
-        name(comparison_korea_overlap, replace)
+        legend(order(1 "Singles" 2 "Stable relationships") ///
+               rows(1) size(small) position(6)) ///
+        graphregion(color(white)) ///
+        plotregion(color(white)) ///
+        name(comparison_korea_mismatch, replace)
 
-    graph export "`figdir'/comparison_singles_vs_stable_korea_overlap.png", ///
-        name(comparison_korea_overlap) replace width(3000)
+    graph export "`figdir'/comparison_singles_vs_stable_korea_mismatch.png", ///
+        name(comparison_korea_mismatch) replace width(3000)
+
+restore
+
+*/
+
+/********************************************************************
+Sweden - natural mismatch comparison
+Horizontal plot to make them comparable con i grafici di Marco
+********************************************************************/
+
+preserve
+
+    keep if country == 1
+
+    sort item
+    egen item_id = group(item), label
+
+    quietly summarize item_id, meanonly
+    local maxitem = r(max)
+
+    * Reverse order so first item appears at the top
+    gen y = `maxitem' + 1 - item_id
+
+    * Create y-axis labels from item names
+    levelsof y, local(yvals)
+    local ylabels ""
+
+    foreach yy of local yvals {
+        levelsof item if y == `yy', local(thisitem) clean
+        local ylabels `"`ylabels' `yy' "`thisitem'""'
+    }
+
+    * Range line between Singles and Stable
+    gen mismatch_min = min(singles_fraction_not_overlap, stable_fraction_not_overlap)
+    gen mismatch_max = max(singles_fraction_not_overlap, stable_fraction_not_overlap)
+
+    * Value labels on points
+    gen singles_label = string(singles_fraction_not_overlap, "%4.2f")
+    gen stable_label  = string(stable_fraction_not_overlap, "%4.2f")
+
+    * X-axis range
+    quietly summarize mismatch_max, meanonly
+    local xmax = ceil(r(max)*20)/20
+    if `xmax' < 0.30 local xmax = 0.30
+
+    twoway ///
+        (pcspike y mismatch_min y mismatch_max, ///
+            lcolor(gs12) lwidth(medthin)) ///
+        (scatter y singles_fraction_not_overlap, ///
+            msymbol(O) msize(medsmall) mcolor(navy) ///
+            mlabel(singles_label) mlabposition(9) mlabsize(vsmall) mlabcolor(navy)) ///
+        (scatter y stable_fraction_not_overlap, ///
+            msymbol(T) msize(medsmall) mcolor(forest_green) ///
+            mlabel(stable_label) mlabposition(3) mlabsize(vsmall) mlabcolor(forest_green)) ///
+        , ///
+        xlabel(0(0.05)`xmax', labsize(small) format(%3.2f) grid) ///
+        xscale(range(0 `xmax')) ///
+        ylabel(`ylabels', angle(horizontal) labsize(small)) ///
+        yscale(reverse) ///
+        xtitle("Fraction in mismatch", size(small)) ///
+        ytitle("") ///
+        title("Ideological mismatch by relationship status", size(medium)) ///
+        subtitle("Sweden", size(small)) ///
+        legend(order(2 "Single" 3 "Stable") ///
+               rows(1) size(small) position(6)) ///
+        note("Mismatch is the fraction not in exact female-male overlap. Grey line shows the Single-Stable range.", size(vsmall)) ///
+        graphregion(color(white)) ///
+        plotregion(color(white)) ///
+        name(comparison_sweden_mismatch, replace)
+
+    graph export "`figdir'/comparison_singles_vs_stable_sweden_mismatch.png", ///
+        name(comparison_sweden_mismatch) replace width(4200)
 
 restore
 
 /********************************************************************
-Combine Sweden and South Korea graphs into one figure
+South Korea - natural mismatch comparison
+Horizontal dot plot layout
 ********************************************************************/
-		
-graph combine comparison_sweden_overlap comparison_korea_overlap, ///
-    cols(2) ///
-    title("Ideological overlap: Singles vs Stable", size(medium)) ///
-    graphregion(color(white)) ///
-    name(comparison_overlap_combined, replace)
 
-graph export "`figdir'/comparison_singles_vs_stable_overlap_combined.png", ///
-    name(comparison_overlap_combined) replace width(4200)
+preserve
 
+    keep if country == 5
+
+    sort item
+    egen item_id = group(item), label
+
+    quietly summarize item_id, meanonly
+    local maxitem = r(max)
+
+    * Reverse order so first item appears at the top
+    gen y = `maxitem' + 1 - item_id
+
+    * Create y-axis labels from item names
+    levelsof y, local(yvals)
+    local ylabels ""
+
+    foreach yy of local yvals {
+        levelsof item if y == `yy', local(thisitem) clean
+        local ylabels `"`ylabels' `yy' "`thisitem'""'
+    }
+
+    * Range line between Singles and Stable
+    gen mismatch_min = min(singles_fraction_not_overlap, stable_fraction_not_overlap)
+    gen mismatch_max = max(singles_fraction_not_overlap, stable_fraction_not_overlap)
+
+    * Value labels on points
+    gen singles_label = string(singles_fraction_not_overlap, "%4.2f")
+    gen stable_label  = string(stable_fraction_not_overlap, "%4.2f")
+
+    * X-axis range
+    quietly summarize mismatch_max, meanonly
+    local xmax = ceil(r(max)*20)/20
+    if `xmax' < 0.30 local xmax = 0.30
+
+    twoway ///
+        (pcspike y mismatch_min y mismatch_max, ///
+            lcolor(gs12) lwidth(medthin)) ///
+        (scatter y singles_fraction_not_overlap, ///
+            msymbol(O) msize(medsmall) mcolor(navy) ///
+            mlabel(singles_label) mlabposition(9) mlabsize(vsmall) mlabcolor(navy)) ///
+        (scatter y stable_fraction_not_overlap, ///
+            msymbol(T) msize(medsmall) mcolor(forest_green) ///
+            mlabel(stable_label) mlabposition(3) mlabsize(vsmall) mlabcolor(forest_green)) ///
+        , ///
+        xlabel(0(0.05)`xmax', labsize(small) format(%3.2f) grid) ///
+        xscale(range(0 `xmax')) ///
+        ylabel(`ylabels', angle(horizontal) labsize(small)) ///
+        yscale(reverse) ///
+        xtitle("Fraction in mismatch", size(small)) ///
+        ytitle("") ///
+        title("Ideological mismatch by relationship status", size(medium)) ///
+        subtitle("South Korea", size(small)) ///
+        legend(order(2 "Single" 3 "Stable") ///
+               rows(1) size(small) position(6)) ///
+        note("Mismatch is the fraction not in exact female-male overlap. Grey line shows the Single-Stable range.", size(vsmall)) ///
+        graphregion(color(white)) ///
+        plotregion(color(white)) ///
+        name(comparison_korea_mismatch, replace)
+
+    graph export "`figdir'/comparison_singles_vs_stable_korea_mismatch.png", ///
+        name(comparison_korea_mismatch) replace width(4200)
+
+restore
 	
+* Export pdf
+
+* 1. Export each named graph as a temporary PNG
+graph export "`figdir'/natural_mismatch_sweden_temp.png", ///
+    name(comparison_sweden_mismatch) replace width(3000)
+
+graph export "`figdir'/natural_mismatch_korea_temp.png", ///
+    name(comparison_korea_mismatch) replace width(3000)
+
+* 2. Create a two-page PDF from the two PNGs
+putpdf clear
+putpdf begin, pagesize(A4) landscape
+
+* Page 1: Sweden
+putpdf paragraph, halign(center)
+putpdf image "`figdir'/natural_mismatch_sweden_temp.png", width(10)
+
+putpdf pagebreak
+
+* Page 2: South Korea
+putpdf paragraph, halign(center)
+putpdf image "`figdir'/natural_mismatch_korea_temp.png", width(10)
+
+putpdf save "`figdir'/natural_mismatch_singles_stable.pdf", replace
+
 /*
 /********************************************************************
 1) Recode PNA/DK style values to missing for your PCA items
@@ -2068,7 +2233,4 @@ corr PC1 PC2 PC3 PC4
 * PC4: Work–family gender-role norms (Q3Fr4 & Q3Mr4: parents working full-time with children under age 3)
 
 */
-
-
-
 
